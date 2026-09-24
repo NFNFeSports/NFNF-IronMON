@@ -178,6 +178,17 @@ class UprZxRandomizer(RandomizerAdapter):
             tail = " | ".join((proc.stderr or proc.stdout or "").strip().splitlines()[-3:])
             raise RandomizerError(f"UPR ZX failed (exit {proc.returncode}): {tail}")
         if not out.is_file():
+            # FileFunctions.fixFilename appends the game's default extension when the
+            # requested one is unknown to UPR (e.g. ".gb" -> ".gb.gbc"); adopt that file.
+            for ext in ("gbc", "sgb", "gba", "nds", "cxi"):
+                alt = out.with_name(f"{out.name}.{ext}")
+                if alt.is_file():
+                    alt.rename(out)
+                    alt_log = Path(str(alt) + ".log")
+                    if alt_log.is_file():
+                        alt_log.rename(Path(str(out) + ".log"))
+                    break
+        if not out.is_file():
             raise RandomizerError(f"UPR ZX reported success but {out.name} was not written")
         parsed = UprLog(None, None, None, None)
         upr_log = Path(str(out) + ".log")

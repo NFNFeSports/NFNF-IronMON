@@ -1,0 +1,14 @@
+{
+  "id": "red-ironmon",
+  "name": "Red — IronMON Standard (official two-pass Gen 1 method)",
+  "game_id": "red",
+  "randomizer": "upr-zx",
+  "settings": {
+    "settings_files": [
+      "randomizer-profiles/gen1-ironmon-standard-part1.rnqs",
+      "randomizer-profiles/gen1-ironmon-part2.rnqs"
+    ],
+    "preset": "IronMON Gen 1 Standard (PART 1 + PART 2)",
+    "settings_source": "UTDZac 'Ironmon Randomizer Settings' gist rev ebe53603 (2026-07-05): Gen 1 PART 1 Standard + PART 2 strings, converted with tools/settings_string_to_rnqs.py"
+  }
+}

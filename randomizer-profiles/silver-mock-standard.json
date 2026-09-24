@@ -1,0 +1,10 @@
+{
+  "id": "silver-mock-standard",
+  "name": "Silver — mock randomizer (tests)",
+  "game_id": "silver",
+  "randomizer": "mock",
+  "settings": {
+    "preset": "test",
+    "species_max": 251
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "id": "red-mock-standard",
+  "name": "Red — mock randomizer (tests)",
+  "game_id": "red",
+  "randomizer": "mock",
+  "settings": {
+    "preset": "test",
+    "species_max": 151
+  }
+}

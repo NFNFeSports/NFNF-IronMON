@@ -1,7 +1,7 @@
-"""Gen 1 / Gen 2 adapters — identification only (runs arrive in Phases 6–7).
+"""Gen 1 (Red) and Gen 2 (Silver) game adapters.
 
-They exist in Phase 1 to prove the core is not FireRed-shaped: the same
-registry, ROM manager and UI handle them without any special cases.
+Runs use the integrated mGBA core (GB/GBC), the NFNF memory tracker
+(nfnf_ironmon/tracker/gen12.py) and UPR ZX with the official IronMON settings.
 """
 
 from __future__ import annotations
@@ -33,10 +33,10 @@ class RedGameAdapter(_GameBoyAdapter):
     generation = 1
     platform = "gb"
     rom_extensions = (".gb",)
-    status = "planned"
-    supported_emulators = ("bizhawk", "mgba")
-    supported_trackers = ("ironmon-gen1-tracker",)
-    supported_randomizers = ("upr-zx",)
+    status = "supported"
+    supported_emulators = ("nfnf-libretro", "mock")
+    supported_trackers = ("nfnf", "none", "mock")
+    supported_randomizers = ("upr-zx", "mock")
     titles = ("POKEMON RED",)
     region_by_title = {"POKEMON RED": "USA/Europe"}
     known_dumps = {
@@ -51,10 +51,10 @@ class SilverGameAdapter(_GameBoyAdapter):
     generation = 2
     platform = "gbc"
     rom_extensions = (".gbc", ".gb")
-    status = "planned"
-    supported_emulators = ("bizhawk", "mgba")
-    supported_trackers = ("ironmon-gen2-tracker",)
-    supported_randomizers = ("upr-zx",)
+    status = "supported"
+    supported_emulators = ("nfnf-libretro", "mock")
+    supported_trackers = ("nfnf", "none", "mock")
+    supported_randomizers = ("upr-zx", "mock")
     # 11-char title + 4-char manufacturer code share the 16-byte title area.
     titles = ("POKEMON_SLVAAXE",)
     region_by_title = {"POKEMON_SLVAAXE": "USA/Europe"}

@@ -1,0 +1,12 @@
+{
+  "id": "silver-ironmon",
+  "name": "Silver — IronMON Standard (Gen 2 string; PARTIAL per official notes)",
+  "game_id": "silver",
+  "randomizer": "upr-zx",
+  "settings": {
+    "settings_file": "randomizer-profiles/gen2-ironmon-standard.rnqs",
+    "preset": "IronMON Gen 2 Standard",
+    "settings_source": "UTDZac gist rev ebe53603 (2026-07-05): Gold/Silver/Crystal Standard string (written for Crystal). The gist notes the strings 'may not work completely' for Gold/Silver.",
+    "caveat": "Official IronMON Gen 2 strings target Crystal; Gold/Silver fidelity is not guaranteed by the IronMON community."
+  }
+}
