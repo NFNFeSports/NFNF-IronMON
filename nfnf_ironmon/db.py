@@ -13,7 +13,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterator
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 SCHEMA_V1 = """
 CREATE TABLE games (
@@ -156,7 +156,15 @@ ALTER TABLE runs ADD COLUMN attempt_number INTEGER;
 CREATE UNIQUE INDEX idx_runs_attempt ON runs(attempt_number);
 """
 
-MIGRATIONS = {1: SCHEMA_V1, 2: SCHEMA_V2}
+# v3: IronMON encounter tracking (first encounter per area, duplicates, capture status)
+SCHEMA_V3 = """
+ALTER TABLE encounters ADD COLUMN area_id TEXT;
+ALTER TABLE encounters ADD COLUMN first_in_area INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE encounters ADD COLUMN duplicate INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE encounters ADD COLUMN captured INTEGER NOT NULL DEFAULT 0;
+"""
+
+MIGRATIONS = {1: SCHEMA_V1, 2: SCHEMA_V2, 3: SCHEMA_V3}
 
 
 class Database:

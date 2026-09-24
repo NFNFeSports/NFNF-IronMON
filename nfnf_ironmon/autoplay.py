@@ -10,12 +10,15 @@ game's memory reader:
     GOTO7,4                  walk to map coordinates (x first, then y) using live position
     DIR_UNTIL:UP,y=1         step in a direction until x=/y= reaches a value, or "map" changes
     FACE:RIGHT               turn to face a direction
+    UP_MAP:13,12             walk north until the map changes, switching between the two columns
+                             whenever blocked (wandering NPCs)
     UNTIL_VALID              cycle A,A,A,START until the game clock runs (intro, naming screens)
     MASH_UNTIL_FREE:DOWN     advance dialogue (A,A,B) until stepping DOWN really moves the player
     MASH_UNTIL_AREA:Oaks_Lab tap A until the area name matches
     UNTIL_PARTY[:RIGHT]      cycle (face RIGHT,) A,A,A until the party is non-empty
     WILD                     walk left/right until a battle starts (max 80 laps)
     POKE_ENEMY_HP:1          TEST ONLY: set the opposing active Pokémon's HP (deterministic battles)
+    FORCE_WIN                TEST ONLY: set gBattleOutcome=WON so the game ends the battle itself
     POKE_PARTY_HP:0          TEST ONLY: set party slot 0 HP (deterministic faint)
 
 The paths below were recorded by playing each game from boot to the starter
@@ -53,9 +56,9 @@ INTRO_TO_STARTER = {
 #: FireRed after the starter: rival battle (forced win), then Route 1 grass.
 FIRERED_TO_ROUTE1_ENCOUNTER = [
     "GOTO7,6 GOTO7,10 HOLDDOWN30 WAIT60 A*8 WAIT200",   # rival battle starts
-    "POKE_ENEMY_HP:1", "A*40 WAIT120 A*20 WAIT120",     # our first hit wins deterministically
-    "A*10 WAIT60 B*6", "GOTO7,12 HOLDDOWN40 WAIT90",     # leave the lab
-    "GOTO12,13 GOTO12,1 HOLDUP60 WAIT60", "WILD",       # north onto Route 1 grass
+    "FORCE_WIN", "A*20 WAIT120",                        # rival battle ends as a win (test only)
+    "A*10 WAIT60 B*6", "GOTO6,12 HOLDDOWN40 WAIT90",     # leave the lab over the exit mat
+    "GOTO12,14 GOTO12,5 UP_MAP:13,12", "HOLDUP40 WAIT30", "WILD",   # north onto Route 1 grass
 ]
 
 
@@ -113,6 +116,12 @@ def run_script(ctx: ScriptContext, script: list[str],
                     # UNTIL_PARTY never presses START either: in the overworld it opens the menu.
                     cycle = ("A", "A", "A") if name.startswith("UNTIL_PARTY") else ("A", "A", "A", "START")
                     btn = cycle[presses % len(cycle)]
+                    if name.startswith("UNTIL_PARTY") and presses and presses % 24 == 0:
+                        # periodically finish a (full) nickname keyboard: START ends naming;
+                        # in the overworld START opens the menu, which the B presses close again
+                        for b in ("START", "B", "B"):
+                            yield from frames(6, {b})
+                            yield from frames(24)
                     if face:
                         # before EVERY press: a turn made while a text box is closing is ignored,
                         # and an A while facing the NPC restarts their dialogue. 16 frames is long
@@ -138,6 +147,27 @@ def run_script(ctx: ScriptContext, script: list[str],
                     yield from frames(12, {direction})   # one tile per short press (no overshoot)
                     yield from frames(12)
                 yield from frames(20)
+            elif name.startswith("UP_MAP:"):
+                cols = [int(c) for c in name.split(":")[1].split(",")]
+                start, col, stuck = ctx.state().area_id, 0, 0
+                for _ in range(120):
+                    st = ctx.state()
+                    if st.area_id != start or st.player_xy is None:
+                        break
+                    x, y = st.player_xy
+                    if x != cols[col]:
+                        yield from frames(8, {"RIGHT" if x < cols[col] else "LEFT"})
+                        yield from frames(8)
+                        continue
+                    yield from frames(8, {"UP"})
+                    yield from frames(8)
+                    after = ctx.state().player_xy
+                    stuck = stuck + 1 if after == (x, y) else 0
+                    if stuck >= 3:   # blocked: close any NPC text (B never re-talks), try the other column
+                        for _ in range(4):
+                            yield from frames(6, {"B"})
+                            yield from frames(20)
+                        col, stuck = (col + 1) % len(cols), 0
             elif name.startswith("FACE:"):
                 yield from frames(6, {name[5:]})
                 yield from frames(12)
@@ -168,6 +198,14 @@ def run_script(ctx: ScriptContext, script: list[str],
                         break
                     yield from frames(34, {"LEFT"})
                     yield from frames(34, {"RIGHT"})
+            elif name == "FORCE_WIN":
+                # gBattleOutcome != 0 makes the battle main loop end the battle (B_OUTCOME_WON = 1)
+                for _ in range(80):
+                    if not ctx.state().battle.in_battle:
+                        break
+                    ctx.core.write_bus(ctx.reader.a["gBattleOutcome"], b"\x01")
+                    yield from frames(6, {"B"})
+                    yield from frames(30)
             elif name.startswith("POKE_ENEMY_HP:"):
                 poke_enemy_hp(ctx, int(name.split(":")[1]))
             elif name.startswith("POKE_PARTY_HP:"):
@@ -207,3 +245,41 @@ def play_script(core: LibretroCore, reader, script: list[str], poll_every: int =
         core.run_frames(1, pressed)
         if on_state and (i + 1) % poll_every == 0:
             on_state(ctx.state())
+
+
+class SessionScript:
+    """Drive a GameSession: per run, play that run's script, then idle; answer end-of-run screens.
+
+    ``scripts`` is a list of token lists, one per successive run (the last one is reused).
+    ``stop(sess)`` ends the session when it returns True.
+    """
+
+    def __init__(self, scripts: list[list[str]], runs: int = 2,
+                 stop: Callable[[object], bool] | None = None,
+                 on_frame: Callable[[object, int], None] | None = None):
+        self.scripts, self.runs, self.stop, self.on_frame = scripts, runs, stop, on_frame
+        self.current: str | None = None
+        self.gen: Iterator[set[str]] | None = None
+        self.finished: list[str] = []
+
+    def __call__(self, sess, frame: int):
+        if frame == -1:   # failure/abandon screen
+            return {"NEW_RUN"} if len(sess.result.runs_played) < self.runs else {"QUIT"}
+        if self.stop and self.stop(sess):
+            sess.running = False
+            return set()
+        if self.on_frame:
+            self.on_frame(sess, frame)
+        if sess.run is None or sess.reader is None:
+            return set()
+        if sess.run.id != self.current:
+            self.current = sess.run.id
+            idx = min(len(sess.result.runs_played) - 1, len(self.scripts) - 1)
+            self.gen = run_script(ScriptContext(sess.core, sess.reader), self.scripts[idx])
+        if self.gen is not None:
+            try:
+                return next(self.gen)
+            except StopIteration:
+                self.gen = None
+                self.finished.append(self.current)
+        return set()

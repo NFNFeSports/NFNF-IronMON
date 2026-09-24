@@ -188,7 +188,8 @@ class InPlaceDiscoveryTests(AppTestCase):
         c.close()
         app = Application(self.tmp / "old")
         try:
-            self.assertEqual(app.db.schema_version, 2)
+            from nfnf_ironmon.db import SCHEMA_VERSION
+            self.assertEqual(app.db.schema_version, SCHEMA_VERSION)
             cols = {r["name"] for r in app.db.query("PRAGMA table_info(runs)")}
             self.assertTrue({"actual_randomizer_seed", "deterministic", "attempt_number"} <= cols)
             self.assertTrue((db.parent / "nfnf-ironmon.sqlite3.v1.bak").exists())

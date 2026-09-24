@@ -50,3 +50,18 @@ class DatabaseTests(AppTestCase):
                                {"species": "Youngster Ben", "encounter_type": "trainer"}])
         deaths = self.app.db.query("SELECT species, cause FROM deaths WHERE run_id=?", (rid,))
         self.assertEqual(deaths, [{"species": "Bulbasaur", "cause": "Brock"}])
+
+    def test_ironmon_encounter_table(self):
+        self.import_firered()
+        rid = self.app.new_run(seed=3).id
+        rec = lambda t, **p: self.app.record_event(rid, t, p, source="tracker:nfnf")
+        rec(EventType.WILD_ENCOUNTER, species="PIDGEY", level=3, area="ROUTE 1", area_id="3:19",
+            first_in_area=True, duplicate=False)
+        rec(EventType.POKEMON_CAPTURED, species="PIDGEY", level=3, method="caught")
+        rec(EventType.WILD_ENCOUNTER, species="RATTATA", level=2, area="ROUTE 1", area_id="3:19",
+            first_in_area=False, duplicate=False)
+        rows = self.app.db.query("SELECT area, species, first_in_area, duplicate, captured FROM encounters"
+                                 " WHERE run_id=? ORDER BY id", (rid,))
+        self.assertEqual(rows, [
+            {"area": "ROUTE 1", "species": "PIDGEY", "first_in_area": 1, "duplicate": 0, "captured": 1},
+            {"area": "ROUTE 1", "species": "RATTATA", "first_in_area": 0, "duplicate": 0, "captured": 0}])

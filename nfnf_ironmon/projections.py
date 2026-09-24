@@ -22,10 +22,11 @@ class GameplayProjection:
         p = e.payload
         kind = "wild" if e.type == EventType.WILD_ENCOUNTER else "trainer"
         self.db.execute(
-            "INSERT INTO encounters (run_id, event_id, species, level, area, encounter_type, timestamp)"
-            " VALUES (?,?,?,?,?,?,?)",
-            (e.run_id, e.event_id, p.get("species") or p.get("trainer"), p.get("level"),
-             p.get("area"), kind, e.timestamp))
+            "INSERT INTO encounters (run_id, event_id, species, level, area, encounter_type, timestamp,"
+            " area_id, first_in_area, duplicate) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (e.run_id, e.event_id, p.get("species") or p.get("enemy") or p.get("trainer"), p.get("level"),
+             p.get("area"), kind, e.timestamp, p.get("area_id"), int(bool(p.get("first_in_area"))),
+             int(bool(p.get("duplicate")))))
 
     def _upsert(self, e: Event, mon: dict, status: str = "ALIVE") -> None:
         species = mon.get("species")
@@ -45,8 +46,14 @@ class GameplayProjection:
                  int(bool(mon.get("is_starter"))), status, e.event_id, utc_now()))
 
     def _captured(self, e: Event) -> None:
-        if e.run_id:
-            self._upsert(e, e.payload)
+        if not e.run_id:
+            return
+        self._upsert(e, e.payload)
+        if e.payload.get("method") == "caught" and e.payload.get("species"):
+            row = self.db.query_one("SELECT id FROM encounters WHERE run_id = ? AND encounter_type = 'wild'"
+                                    " AND species = ? ORDER BY id DESC LIMIT 1", (e.run_id, e.payload["species"]))
+            if row:
+                self.db.execute("UPDATE encounters SET captured = 1 WHERE id = ?", (row["id"],))
 
     def _party(self, e: Event) -> None:
         if e.run_id:
