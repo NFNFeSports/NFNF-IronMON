@@ -63,7 +63,7 @@ class SeparateHomeTests(AppTestCase):
         self.assertEqual(AppConfig.load(paths).get("default_randomizer_profile"),
                          DEFAULTS["default_randomizer_profile"])
         self.assertEqual(DEFAULTS["default_randomizer_profile"], "auto")
-        self.assertEqual(DEFAULTS["tracker"], "none")
+        self.assertEqual(DEFAULTS["tracker"], "nfnf")          # built-in memory tracker
 
 
 class ConfigOverrideTests(AppTestCase):

@@ -77,9 +77,12 @@ class RunOrchestrator:
         cfg = self.config
         game_id = game_id or cfg.get("default_game")
         ruleset_id = ruleset_id or cfg.get("default_ruleset")
+        explicit_profile = profile_id is not None
         profile_id = profile_id or cfg.get("default_randomizer_profile")
         if profile_id == "auto":
             profile_id = self.auto_profile(game_id)
+        elif not explicit_profile:
+            profile_id = self._default_profile_for(game_id, profile_id)
         emulator_id = emulator_id or cfg.get("emulator")
         tracker_id = tracker_id or cfg.get("tracker")
 
@@ -238,6 +241,21 @@ class RunOrchestrator:
         raise RunSetupError(
             f"No real randomizer is available for {game_id}. Bundle UPR ZX + Java with "
             f"`components fetch`, or choose a profile explicitly (e.g. --profile {game_id}-mock-standard).")
+
+    def _default_profile_for(self, game_id: str, default_id: str) -> str:
+        """The configured default is per install, not per game: when it belongs to another game,
+        use this game's equivalent (same randomizer kind: mock stays mock, real stays real)."""
+        try:
+            default = self.profiles.load(default_id)
+        except KeyError:
+            return default_id
+        if default.game_id == game_id:
+            return default_id
+        same_kind = [p for p in self.profiles.list()
+                     if p.game_id == game_id and (p.randomizer == "mock") == (default.randomizer == "mock")]
+        if same_kind:
+            return same_kind[0].id
+        return self.auto_profile(game_id) if default.randomizer != "mock" else default_id
 
     def _guard_source(self, source) -> None:
         """Every run starts from a clean original — never from a generated ROM."""

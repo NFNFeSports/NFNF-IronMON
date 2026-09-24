@@ -377,6 +377,14 @@ class LibretroCore:
             self.audio_buffer.clear()
             self.regions = []
 
+    def write_memory(self, kind: int, offset: int, data: bytes) -> None:
+        """Write into a libretro memory block (e.g. SYSTEM_RAM) — tests/tools only."""
+        size = self.lib.retro_get_memory_size(kind)
+        ptr = self.lib.retro_get_memory_data(kind)
+        if not ptr or offset + len(data) > size:
+            raise LibretroError("memory write out of range")
+        C.memmove(ptr + offset, data, len(data))
+
     def write_bus(self, address: int, data: bytes) -> None:
         """Write guest memory (used by tests/tools to create deterministic game states)."""
         for r in self.regions:

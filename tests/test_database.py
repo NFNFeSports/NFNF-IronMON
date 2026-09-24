@@ -17,7 +17,7 @@ class DatabaseTests(AppTestCase):
 
     def test_catalog_synced(self):
         games = {r["id"]: r["status"] for r in self.app.db.query("SELECT id, status FROM games")}
-        self.assertEqual(games, {"firered": "supported", "red": "planned", "silver": "planned"})
+        self.assertEqual(games, {"firered": "supported", "red": "supported", "silver": "supported"})
         self.assertEqual(len(self.app.db.query("SELECT * FROM rulesets")), 3)
         self.assertGreaterEqual(len(self.app.db.query("SELECT * FROM randomizer_profiles")), 1)
 

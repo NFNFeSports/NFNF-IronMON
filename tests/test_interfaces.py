@@ -42,7 +42,7 @@ class CliTests(AppTestCase):
         self.assertIn("RUN-000001  FAILED", out)
         code, out = self.cli("games")
         self.assertIn("firered", out)
-        self.assertIn("planned", out)
+        self.assertIn("red      Pokémon Red        gen 1  supported", out)
         self.assertEqual(self.cli("doctor")[0], 0)
 
     def test_cli_errors_return_nonzero(self):

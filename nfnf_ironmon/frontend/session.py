@@ -790,7 +790,14 @@ class GameSession:
     def _loop(self) -> None:
         frame_time = 1.0 / self.fps
         next_t = time.perf_counter()
+        loops = 0
+        # automation safety: a scripted/limited session can never spin forever on a menu
+        max_loops = None if self.opt.max_frames is None else self.opt.max_frames * 40 + 20000
         while self.running:
+            loops += 1
+            if max_loops is not None and loops > max_loops:
+                self.result.quit_reason = "automation_loop_limit"
+                break
             keys = self._handle_events()
             self._poll_preparation()
             inp = self.router.poll()

@@ -94,11 +94,19 @@ class RomManagerTests(AppTestCase):
             self.app.roms.find_original("firered")
 
     def test_planned_games_identify_but_cannot_run(self):
-        self.app.import_rom(synthetic_gb(self.tmp / "r.gb", b"POKEMON RED"))
+        from nfnf_ironmon.games import FireRedGameAdapter
+        class PlannedGame(FireRedGameAdapter):   # stand-in for a detection-only game
+            game_id, display_name, status = "planned-demo", "Planned Demo", "planned"
+        self.app.games.register(PlannedGame())
         with self.assertRaises(GameNotSupportedError):
-            self.app.new_run(game_id="red")
+            self.app.new_run(game_id="planned-demo")
         self.assertEqual(self.app.runs.list(), [])
 
+    def test_red_run_uses_the_red_profile(self):
+        # the configured default profile is FireRed's; a Red run picks Red's equivalent
+        self.app.import_rom(synthetic_gb(self.tmp / "r.gb", b"POKEMON RED"))
+        run = self.app.new_run(game_id="red")
+        self.assertEqual((run.game_id, run.row["randomizer_profile_id"]), ("red", "red-mock-standard"))
 
 if __name__ == "__main__":
     unittest.main()
