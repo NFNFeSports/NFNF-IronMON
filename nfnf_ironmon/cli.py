@@ -217,7 +217,8 @@ def _components_cmd(app: Application, args: argparse.Namespace) -> int:
         return 0
     if args.platform:
         cm.platform = args.platform
-    ids = args.ids or [i for i in cm.ids() if cm.platform_spec(i)]
+    ids = args.ids or [i for i in cm.ids() if cm.platform_spec(i) and not cm.spec(i).get("build_from")
+                       and not cm.spec(i).get("build_only")]
     for cid in ids:
         entry = cm.fetch(cid, args.platform, pin=args.pin)
         print(f"{cid:<22} OK  {entry}")

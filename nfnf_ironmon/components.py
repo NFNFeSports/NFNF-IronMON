@@ -110,6 +110,9 @@ class ComponentManager:
         if not found:
             raise ComponentError(f"{component_id} has no build for {platform or self.platform}")
         plat, p = found
+        if self.spec(component_id).get("build_from"):
+            raise ComponentError(f"{component_id} is compiled from source ({self.spec(component_id)['build_from']}): "
+                                 "run ./build-linux.sh / ./build-windows.sh (packaging/build_core.sh)")
         data = (downloader or _download)(p["url"])
         digest = sha256_bytes(data)
         expected = p.get("sha256")

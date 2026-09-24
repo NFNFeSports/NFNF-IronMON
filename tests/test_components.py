@@ -112,12 +112,19 @@ class BundledManifestTests(unittest.TestCase):
             with self.subTest(c["id"]):
                 self.assertTrue(c["license"])
                 self.assertTrue(c.get("redistributable"))
+                if c.get("build_from"):          # compiled from a pinned source component
+                    src = m.spec(c["build_from"])
+                    self.assertTrue(src.get("build_only"))
+                    self.assertTrue(all(p["sha256"] for p in src["platforms"].values()))
+                    with self.assertRaises(ComponentError):
+                        m.fetch(c["id"])
+                    continue
                 for plat, p in c["platforms"].items():
                     self.assertTrue(p["url"].startswith("https://"))
                     self.assertFalse(p["dest"].startswith(("/", "..")))
-        # linux builds are pinned (verified on first fetch); windows core is not fetched yet
-        self.assertIsNotNone(m.spec("java-runtime")["platforms"]["windows-x64"]["sha256"])
-        self.assertIsNotNone(m.spec("upr-zx")["platforms"]["any"]["sha256"])
+                    # nothing is ever downloaded without a pinned checksum
+                    self.assertRegex(p["sha256"] or "", r"^[0-9a-f]{64}$", (c["id"], plat))
+        self.assertTrue(m.spec("jdk-build")["build_only"])
 
 
 if __name__ == "__main__":

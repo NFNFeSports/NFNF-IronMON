@@ -32,6 +32,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("frozen_app", type=Path, help="PyInstaller onedir output folder")
     ap.add_argument("out", type=Path)
     ap.add_argument("--platform", required=True, help="linux-x64 | windows-x64")
+    ap.add_argument("--java", type=Path, help="reduced (jlink) Java runtime to bundle instead of the full JRE")
     args = ap.parse_args(argv)
 
     manifest = json.loads((ROOT / "components.json").read_text())
@@ -42,11 +43,15 @@ def main(argv: list[str] | None = None) -> int:
 
     missing = []
     for comp in manifest["components"]:
+        if comp.get("build_only"):
+            continue
         plats = comp["platforms"]
         spec = plats.get(args.platform) or plats.get("any")
         if not spec:
             continue
         src = ROOT / spec["dest"]
+        if comp["id"] == "java-runtime" and args.java:
+            src = args.java
         if not (src / spec["entry"]).exists():
             missing.append(comp["id"])
             continue
@@ -59,6 +64,9 @@ def main(argv: list[str] | None = None) -> int:
 
     for d in DATA_DIRS:
         shutil.copytree(ROOT / d, out / d)
+    shutil.copytree(ROOT / "licenses", out / "licenses")
+    shutil.copytree(ROOT / "docs", out / "docs")
+    shutil.copy2(ROOT / "README.md", out / "README.md")
     shutil.copy2(ROOT / "components.json", out / "components.json")
     for d in ("games/original", "runs", "data", "config"):
         (out / d).mkdir(parents=True, exist_ok=True)

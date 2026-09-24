@@ -91,34 +91,45 @@
       }
     },
     {
-      "id": "mgba-libretro",
-      "name": "mGBA libretro core",
-      "version": "nightly",
+      "id": "mgba-source",
+      "name": "mGBA source code (build input)",
+      "version": "7a12d6d4b9acb14c0ae62c9166b6a2f3d08007f6",
       "license": "MPL-2.0",
       "license_url": "https://github.com/mgba-emu/mgba/blob/master/LICENSE",
-      "source_url": "https://github.com/libretro/mgba",
       "redistributable": true,
-      "purpose": "Integrated GB/GBC/GBA emulation core hosted in-process (Phase 2: headless prototype)",
+      "build_only": true,
+      "purpose": "Source tarball the mGBA libretro core is compiled from (reproducible, MPL-2.0 source available)",
+      "platforms": {
+        "any": {
+          "url": "https://github.com/mgba-emu/mgba/archive/7a12d6d4b9acb14c0ae62c9166b6a2f3d08007f6.tar.gz",
+          "sha256": "5cbf639e527fb586bf33e14d59037eab35f78f45154e0b79c784fff474c3bc37",
+          "sha256_source": "pinned by NFNF on first verified download",
+          "archive": null,
+          "dest": "build",
+          "entry": "mgba-src-7a12d6d4.tar.gz"
+        }
+      }
+    },
+    {
+      "id": "mgba-libretro",
+      "name": "mGBA libretro core",
+      "version": "0.11-dev commit 7a12d6d4 (built from source)",
+      "license": "MPL-2.0",
+      "license_url": "https://github.com/mgba-emu/mgba/blob/master/LICENSE",
+      "source_url": "https://github.com/mgba-emu/mgba/tree/7a12d6d4b9acb14c0ae62c9166b6a2f3d08007f6",
+      "redistributable": true,
+      "purpose": "Integrated GB/GBC/GBA emulation core hosted in-process; compiled from the pinned source by packaging/build_core.sh",
       "platforms": {
         "linux-x64": {
-          "url": "https://buildbot.libretro.com/nightly/linux/x86_64/latest/mgba_libretro.so.zip",
-          "sha256": "5eea0627d4cefc4a995c89c18da8a6d43487793365e9eb02f9ce3bfe28e5ca07",
-          "sha256_source": "pinned by NFNF on first verified fetch (nightly build)",
-          "archive": "zip",
-          "strip_components": 0,
           "dest": "emulator/cores/linux-x64",
           "entry": "mgba_libretro.so"
         },
         "windows-x64": {
-          "url": "https://buildbot.libretro.com/nightly/windows/x86_64/latest/mgba_libretro.dll.zip",
-          "sha256": null,
-          "sha256_source": "pinned by NFNF on first verified fetch (nightly build)",
-          "archive": "zip",
-          "strip_components": 0,
           "dest": "emulator/cores/windows-x64",
           "entry": "mgba_libretro.dll"
         }
-      }
+      },
+      "build_from": "mgba-source"
     },
     {
       "id": "firered-ironmon-rnqs",
@@ -136,6 +147,36 @@
           "archive": null,
           "dest": "randomizer-profiles",
           "entry": "firered-ironmon.rnqs"
+        }
+      }
+    },
+    {
+      "id": "jdk-build",
+      "name": "Eclipse Temurin JDK (build tool: jlink only, not distributed)",
+      "version": "21.0.12.1+1",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "license_url": "https://adoptium.net/docs/faq/",
+      "redistributable": true,
+      "build_only": true,
+      "purpose": "jlink produces the reduced Java runtime bundled with builds (same version as java-runtime)",
+      "platforms": {
+        "linux-x64": {
+          "url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.12.1%2B1/OpenJDK21U-jdk_x64_linux_hotspot_21.0.12.1_1.tar.gz",
+          "sha256": "ce79869e1307ed8ee1e2baa86a412b1eb5b75d10a01006d788a6f968bcfaee94",
+          "sha256_source": "Adoptium API (publisher checksum)",
+          "archive": "tar.gz",
+          "strip_components": 1,
+          "dest": "build/jdk/linux-x64",
+          "entry": "bin/jlink"
+        },
+        "windows-x64": {
+          "url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.12.1%2B1/OpenJDK21U-jdk_x64_windows_hotspot_21.0.12.1_1.zip",
+          "sha256": "f9d6e191ab098c0d416e7d588a24420a8621cd2f4720dab2459b8b7b2d2d8b4e",
+          "sha256_source": "Adoptium API (publisher checksum)",
+          "archive": "zip",
+          "strip_components": 1,
+          "dest": "build/jdk/windows-x64",
+          "entry": "jmods/java.base.jmod"
         }
       }
     }
