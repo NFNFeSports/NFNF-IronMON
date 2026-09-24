@@ -25,7 +25,7 @@ def _print_runs(app: Application) -> None:
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="nfnf-ironmon", description=f"{APP_NAME} {__version__}")
     p.add_argument("--home", help="Portable data folder (default: application folder or $NFNF_IRONMON_HOME)")
-    sub = p.add_subparsers(dest="cmd", required=True)
+    sub = p.add_subparsers(dest="cmd")   # no command → the launcher window
 
     sub.add_parser("init", help="Create folders, config and database")
     dr = sub.add_parser("doctor", help="Status of every part of the standalone application")
@@ -93,7 +93,16 @@ def build_parser() -> argparse.ArgumentParser:
     ev.add_argument("type")
     ev.add_argument("--payload", default="{}", help="JSON object")
 
-    sub.add_parser("ui", help="Open the desktop UI")
+    sub.add_parser("ui", help="Open the launcher (default when no command is given)")
+    pl = sub.add_parser("play", help="Open the game window: continue the active run, or start a new one")
+    pl.add_argument("--run", help="run id to continue")
+    pl.add_argument("--new", action="store_true", help="start a new run")
+    pl.add_argument("--game")
+    pl.add_argument("--ruleset")
+    pl.add_argument("--fullscreen", action="store_true")
+    st = sub.add_parser("selftest", help="Headless end-to-end check with your own ROM in a temporary folder")
+    st.add_argument("--game", default=None, help="game id (default: first supported game with a ROM)")
+    st.add_argument("--keep", action="store_true", help="keep the temporary data folder")
     sv = sub.add_parser("serve", help="Local JSON API on 127.0.0.1")
     sv.add_argument("--port", type=int, default=8765)
     return p
@@ -101,6 +110,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.cmd is None:
+        args.cmd = "ui"
     logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
     try:
         with Application(args.home) as app:
@@ -127,9 +138,20 @@ def _dispatch(app: Application, args: argparse.Namespace) -> int:
     elif args.cmd == "emulator":
         return _emulator_cmd(app, args)
     elif args.cmd == "games":
+        from .capabilities import overall, render
+        app.roms.scan()
         for g in app.list_games():
-            print(f"{g['id']:<8} {g['name']:<18} gen {g['generation']}  {g['status']:<9} "
+            print(f"{g['id']:<10} {g['name']:<18} gen {g['generation']}  {overall(app.games.get(g['id'])):<14} "
                   f"roms={g['roms_imported']}")
+        print()
+        print(render(app.games))
+    elif args.cmd == "play":
+        return _play_cmd(app, args)
+    elif args.cmd == "selftest":
+        from .selftest import run_selftest
+        report = run_selftest(app, args.game, keep=args.keep)
+        print(dumps(report))
+        return 0 if report["result"] == "PASS" else 1
     elif args.cmd == "events":
         for name, desc in sorted(registered_event_types().items()):
             print(f"{name:<20} {desc}")
@@ -170,6 +192,20 @@ def _dispatch(app: Application, args: argparse.Namespace) -> int:
     elif args.cmd == "serve":
         from .api import serve
         serve(app, port=args.port)
+    return 0
+
+
+def _play_cmd(app: Application, args: argparse.Namespace) -> int:
+    from .frontend.session import GameSession, SessionOptions
+    from .runs import RunState
+    opts = SessionOptions(fullscreen=args.fullscreen) if args.fullscreen else None
+    sess = GameSession(app, opts)
+    current = app.runs.get(args.run) if args.run else app.runs.current()
+    if current and not args.new:
+        restore = (current.path / "states" / "recovery.state").exists()
+        sess.play(run_id=current.id, resume=current.status == RunState.ACTIVE, restore_state=restore)
+    else:
+        sess.play(new_run={k: v for k, v in (("game_id", args.game), ("ruleset_id", args.ruleset)) if v})
     return 0
 
 

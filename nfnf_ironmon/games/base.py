@@ -58,7 +58,7 @@ class GameAdapter(ABC):
     generation: int = 0
     platform: str = ""
     rom_extensions: tuple[str, ...] = ()
-    #: "supported" = runs can be created; "planned" = identification only.
+    #: "supported" = runs can be created; "detected"/"planned" = identification only.
     status: str = "planned"
     supported_emulators: tuple[str, ...] = ()
     supported_trackers: tuple[str, ...] = ()

@@ -49,9 +49,13 @@ class IdentificationTests(AppTestCase):
         self.assertFalse(ident.header_checksum_ok)
         self.assertTrue(any("checksum" in n for n in ident.notes))
 
-    def test_other_gba_game_not_matched(self):
+    def test_other_gba_games(self):
         p = synthetic_gba(self.tmp / "e.gba", title=b"POKEMON EMER", code=b"BPEE")
-        self.assertIsNone(GameRegistry().identify_file(p))
+        ident = GameRegistry().identify_file(p)
+        self.assertEqual(ident.game_id, "emerald")                 # detected-only game
+        self.assertEqual(GameRegistry().get("emerald").status, "detected")
+        unknown = synthetic_gba(self.tmp / "x.gba", title=b"SOME GAME", code=b"ZZZE")
+        self.assertIsNone(GameRegistry().identify_file(unknown))
 
     def test_gen1_gen2_identified(self):
         red = synthetic_gb(self.tmp / "r.gb", b"POKEMON RED")

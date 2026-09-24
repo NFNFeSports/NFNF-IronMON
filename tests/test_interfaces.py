@@ -151,30 +151,81 @@ class PortabilityTests(AppTestCase):
 
 @unittest.skipUnless(os.environ.get("DISPLAY") or os.name == "nt", "no display available")
 class UiSmokeTest(AppTestCase):
-    def test_window_builds(self):
+    def setUp(self):
+        super().setUp()
         import tkinter as tk
-        from nfnf_ironmon.ui import MainWindow
-        self.import_firered()
-        self.app.new_run(seed=18472931)
         try:
-            root = tk.Tk()
+            self.root = tk.Tk()
         except tk.TclError as exc:
             self.skipTest(f"Tk unavailable: {exc}")
-        try:
-            win = MainWindow(root, self.app)
-            root.update()
-            self.assertEqual(win.games.size(), 3)
-            self.assertIn("RUN-000001  ACTIVE", win.runs.get(0))
-            text = win.current.get("1.0", "end")
-            self.assertIn("Seed: 18472931", text)
-            self.assertIn("Game: Pokémon FireRed", text)
-            ctl = win.controller.get("1.0", "end")
-            self.assertIn("Device:", ctl)
-            self.assertIn("Mapping: xbox-gba-labels", ctl)
-            self.assertIn("Attempts:         1", win.career.get("1.0", "end"))
-        finally:
-            root.destroy()
+        self.addCleanup(self.root.destroy)
 
+    def launcher(self, **kw):
+        from nfnf_ironmon.ui import Launcher
+        win = Launcher(self.root, self.app, **kw)
+        self.root.update()
+        return win
+
+    def test_launcher_state(self):
+        win = self.launcher(check_recovery=False)
+        labels = list(win.game_box["values"])
+        self.assertIn("Pokémon FireRed  (no ROM in games folder)", labels)
+        self.assertTrue(any("Emerald" in l and "detected only" in l for l in labels))
+        self.assertEqual(str(win.start_btn["state"]), "disabled")          # no ROM yet
+        self.import_firered()
+        self.app.new_run(seed=18472931)
+        win.refresh()
+        self.root.update()
+        self.assertEqual(win.game_box.get(), "Pokémon FireRed")
+        self.assertEqual(str(win.start_btn["state"]), "normal")
+        self.assertIn("Attempts: 1", win.info_var.get())
+        self.assertIn("CONTINUE RUN #001", str(win.continue_btn["text"]))
+        self.assertEqual(len(win.tree.get_children()), 1)
+        self.assertEqual(win.rules_box.get(), "Standard IronMON")
+
+    def test_settings_and_remap_and_windows(self):
+        import tkinter as tk
+        win = self.launcher(check_recovery=False)
+        win.settings()
+        self.root.update()
+        top = [w for w in self.root.winfo_children() if isinstance(w, tk.Toplevel)][-1]
+        find_button(top, "SAVE").invoke()
+        saved = json.loads(self.app.paths.config_file.read_text())
+        self.assertIn("volume", saved["session"])
+        win.configure_controller()
+        self.root.update()
+        top = [w for w in self.root.winfo_children() if isinstance(w, tk.Toplevel)][-1]
+        find_button(top, "SAVE AS CUSTOM MAPPING").invoke()
+        custom = json.loads((self.app.paths.input_mappings_dir / "custom.json").read_text())
+        self.assertEqual(custom["buttons"]["A"], ["A"])
+        self.assertEqual(self.app.controllers.mapping_id, "custom")
+        win.capabilities()
+        win.about()
+        win.show_career()
+        self.root.update()
+
+    def test_recovery_prompt(self):
+        import tkinter as tk
+        self.import_firered()
+        run = self.app.new_run(seed=1)
+        (run.path / "session.json").write_text(json.dumps(
+            {"pid": 2 ** 22 + 99, "state": "running", "heartbeat": "2026-01-01T00:00:00+00:00", "area": "ROUTE 1"}))
+        win = self.launcher(check_recovery=False)
+        win.check_recovery()
+        self.root.update()
+        tops = [w for w in self.root.winfo_children() if isinstance(w, tk.Toplevel)]
+        self.assertEqual(tops[-1].title(), "Recover previous run?")
+
+
+def find_button(widget, text):
+    from tkinter import ttk
+    for child in widget.winfo_children():
+        if isinstance(child, ttk.Button) and str(child.cget("text")) == text:
+            return child
+        found = find_button(child, text)
+        if found is not None:
+            return found
+    return None
 
 if __name__ == "__main__":
     unittest.main()

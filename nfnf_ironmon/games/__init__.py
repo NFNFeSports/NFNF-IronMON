@@ -6,6 +6,7 @@ from pathlib import Path
 
 from .base import GameAdapter, GameNotSupportedError, RomIdentity, RunContext
 from .firered import FireRedGameAdapter
+from .detected import DETECTED_ADAPTERS
 from .gen12 import RedGameAdapter, SilverGameAdapter
 
 
@@ -38,7 +39,7 @@ class GameRegistry:
 
 
 def default_game_adapters() -> list[GameAdapter]:
-    return [FireRedGameAdapter(), RedGameAdapter(), SilverGameAdapter()]
+    return [FireRedGameAdapter(), RedGameAdapter(), SilverGameAdapter(), *(a() for a in DETECTED_ADAPTERS)]
 
 
 __all__ = ["GameAdapter", "GameNotSupportedError", "GameRegistry", "RomIdentity", "RunContext",
