@@ -60,6 +60,10 @@ class TrackerAdapter(ABC):
     def detect_game(self, identity: RomIdentity) -> bool:
         return identity.game_id in self.supported_games
 
+    def capabilities_for(self, identity: RomIdentity) -> frozenset[str]:
+        """What this tracker can really observe for this particular game."""
+        return self.capabilities
+
     @abstractmethod
     def prepare(self, run_dir: Path, identity: RomIdentity) -> TrackerPreparation:
         """Prepare files; return scripts the emulator must load."""

@@ -59,6 +59,28 @@ def find_executable(candidates: list[str], configured: str | Path | None = None,
     return None
 
 
+def pid_alive(pid: int | None) -> bool:
+    """Is a process with this id running? (used to detect crashed game sessions)"""
+    if not pid or pid <= 0:
+        return False
+    if os_family() == "windows":
+        import ctypes
+        handle = ctypes.windll.kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+        if not handle:
+            return False
+        code = ctypes.c_ulong()
+        ctypes.windll.kernel32.GetExitCodeProcess(handle, ctypes.byref(code))
+        ctypes.windll.kernel32.CloseHandle(handle)
+        return code.value == 259  # STILL_ACTIVE
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
 def open_in_file_manager(path: Path) -> None:
     fam = os_family()
     if fam == "windows":

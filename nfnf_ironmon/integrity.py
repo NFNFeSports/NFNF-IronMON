@@ -71,7 +71,9 @@ class IntegrityReport:
 
 class IntegrityManager:
     OBSERVED = (EventType.ROM_LOADED, EventType.SAVE_LOADED, EventType.GAME_RESET,
-                EventType.EMULATOR_STARTED, EventType.EMULATOR_STOPPED, EventType.SAVE_CREATED)
+                EventType.EMULATOR_STARTED, EventType.EMULATOR_STOPPED, EventType.SAVE_CREATED,
+                EventType.SESSION_INTERRUPTED, EventType.STATE_RESTORED, EventType.CONTROLLER_DISCONNECTED,
+                EventType.SESSION_RESUMED, EventType.SESSION_CLOSED)
 
     def __init__(self, db: Database, bus: EventBus, runs: RunManager):
         self.db, self.bus, self.runs = db, bus, runs
@@ -155,8 +157,18 @@ class IntegrityManager:
         elif event.type == EventType.GAME_RESET:
             self.record(rid, "game_reset", INFO, f"Reset observed ({p.get('kind', 'unknown')})",
                         event.event_id)
+        elif event.type == EventType.SESSION_INTERRUPTED:
+            self.record(rid, "session_interrupted", IntegrityStatus.SUSPICIOUS,
+                        "Game session ended without a clean shutdown (crash, kill or power loss)",
+                        event.event_id)
+        elif event.type == EventType.STATE_RESTORED:
+            after_crash = bool(p.get("after_crash"))
+            self.record(rid, "state_restored", IntegrityStatus.SUSPICIOUS if after_crash else INFO,
+                        f"Recovery state restored ({'after an interrupted session' if after_crash else 'clean resume'})",
+                        event.event_id)
         elif event.type in (EventType.EMULATOR_STARTED, EventType.EMULATOR_STOPPED,
-                            EventType.SAVE_CREATED):
+                            EventType.SAVE_CREATED, EventType.CONTROLLER_DISCONNECTED,
+                            EventType.SESSION_RESUMED, EventType.SESSION_CLOSED):
             self.record(rid, event.type.lower(), INFO, f"{event.type} observed", event.event_id)
 
     def _check_play_time(self, event: Event) -> None:
@@ -202,16 +214,22 @@ class IntegrityManager:
                 checks.append(IntegrityCheck("settings_hash", S.INVALID, "Seed or randomizer settings changed"))
             else:
                 checks.append(IntegrityCheck("settings_hash", S.VERIFIED, "Seed and settings match baseline"))
-            expected_file = (settings or {}).get("randomizer_settings", {}).get("settings_file_sha256")
-            if expected_file:
-                snap = run.path / "settings.rnqs"
-                if not snap.exists():
-                    checks.append(IntegrityCheck("settings_file", S.INVALID, "settings.rnqs snapshot missing"))
-                elif sha256_file(snap) != expected_file:
-                    checks.append(IntegrityCheck("settings_file", S.INVALID,
-                                                 "Randomizer settings file changed after the run was created"))
-                else:
-                    checks.append(IntegrityCheck("settings_file", S.VERIFIED, "settings.rnqs matches"))
+            rset = (settings or {}).get("randomizer_settings", {})
+            expected = rset.get("settings_files_sha256") or (
+                [rset["settings_file_sha256"]] if rset.get("settings_file_sha256") else [])
+            snaps = (settings or {}).get("settings_file_snapshots") or (["settings.rnqs"] if expected else [])
+            if expected:
+                bad = []
+                for name, digest in zip(snaps, expected):
+                    snap = run.path / name
+                    if not snap.exists():
+                        bad.append(f"{name} missing")
+                    elif sha256_file(snap) != digest:
+                        bad.append(f"{name} changed")
+                if len(snaps) != len(expected):
+                    bad.append("settings snapshot count mismatch")
+                checks.append(IntegrityCheck("settings_file", S.INVALID if bad else S.VERIFIED,
+                                             "; ".join(bad) if bad else "Randomizer settings file(s) match"))
 
             rs_path = run.path / "ruleset.json"
             if not rs_path.exists():

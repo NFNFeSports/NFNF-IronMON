@@ -23,6 +23,7 @@ ENV_GET_CAN_DUPE = 3
 ENV_GET_SYSTEM_DIRECTORY = 9
 ENV_SET_PIXEL_FORMAT = 10
 ENV_GET_VARIABLE = 15
+ENV_SET_VARIABLES = 16
 ENV_GET_VARIABLE_UPDATE = 17
 ENV_GET_SAVE_DIRECTORY = 31
 ENV_SET_MEMORY_MAPS = 36 | ENV_EXPERIMENTAL
@@ -63,6 +64,10 @@ class SystemInfo(C.Structure):
 class GameInfo(C.Structure):
     _fields_ = [("path", C.c_char_p), ("data", C.c_void_p), ("size", C.c_size_t),
                 ("meta", C.c_char_p)]
+
+
+class Variable(C.Structure):
+    _fields_ = [("key", C.c_char_p), ("value", C.c_char_p)]
 
 
 class MemoryDescriptor(C.Structure):
@@ -122,7 +127,8 @@ class LibretroCore:
 
     _active: "LibretroCore | None" = None   # libretro cores are process-global singletons
 
-    def __init__(self, core_path: Path | str, system_dir: Path, save_dir: Path):
+    def __init__(self, core_path: Path | str, system_dir: Path, save_dir: Path,
+                 options: dict[str, str] | None = None):
         if LibretroCore._active is not None:
             raise LibretroError("Only one libretro core instance may be active per process")
         self.core_path = Path(core_path)
@@ -139,9 +145,17 @@ class LibretroCore:
         self.video_frames = 0
         self.frames_run = 0
         self.audio_frames = 0
+        #: interleaved S16LE stereo samples produced since the last take_audio()
+        self.audio_buffer = bytearray()
+        self.capture_audio = True
         self.input = InputSource()
         self._rom_buf = None
         self._game_loaded = False
+        #: core option values NFNF sets (key -> value); unknown keys keep core defaults
+        self.options = {k.encode(): v.encode() for k, v in (options or {}).items()}
+        self._option_bufs: dict[bytes, C.Array] = {}
+        #: options the core declared: key -> (description, [allowed values])
+        self.declared_options: dict[str, tuple[str, list[str]]] = {}
         self._declare()
         # keep callback objects referenced for the lifetime of the core
         self._cbs = (ENV_CB(self._env), VIDEO_CB(self._video), AUDIO_CB(self._audio),
@@ -196,6 +210,22 @@ class LibretroCore:
             if cmd == ENV_GET_CAN_DUPE:
                 C.cast(data, C.POINTER(C.c_bool))[0] = True
                 return True
+            if cmd == ENV_SET_VARIABLES:
+                arr = C.cast(data, C.POINTER(Variable))
+                i = 0
+                while arr[i].key:
+                    desc, _, values = (arr[i].value or b"").decode(errors="replace").partition("; ")
+                    self.declared_options[arr[i].key.decode()] = (desc, values.split("|"))
+                    i += 1
+                return True
+            if cmd == ENV_GET_VARIABLE:
+                var = C.cast(data, C.POINTER(Variable))[0]
+                value = self.options.get(var.key)
+                if value is None:
+                    return False
+                buf = self._option_bufs.setdefault(var.key, C.create_string_buffer(value))
+                C.cast(data, C.POINTER(Variable))[0].value = C.cast(buf, C.c_char_p)
+                return True
             if cmd == ENV_GET_VARIABLE_UPDATE:
                 C.cast(data, C.POINTER(C.c_bool))[0] = False
                 return True
@@ -222,10 +252,24 @@ class LibretroCore:
 
     def _audio(self, left: int, right: int) -> None:
         self.audio_frames += 1
+        if self.capture_audio:
+            self.audio_buffer += struct.pack("<hh", left, right)
 
     def _audio_batch(self, data, frames: int) -> int:
         self.audio_frames += frames
+        if self.capture_audio and frames:
+            self.audio_buffer += C.string_at(data, frames * 4)
         return frames
+
+    def take_audio(self) -> bytes:
+        out = bytes(self.audio_buffer)
+        self.audio_buffer.clear()
+        return out
+
+    @property
+    def last_raw(self):
+        """(bytes, width, height, pitch, pixel_format) of the newest video frame, or None."""
+        return self._last_raw
 
     def _input_state(self, port: int, device: int, index: int, button: int) -> int:
         if port != 0 or device != DEVICE_JOYPAD:
@@ -249,6 +293,8 @@ class LibretroCore:
         return ci
 
     def load_game(self, rom_path: Path) -> None:
+        if self._game_loaded:
+            raise LibretroError("A game is already loaded; call unload_game() first")
         data = Path(rom_path).read_bytes()      # the core gets a private in-memory copy
         self._rom_buf = C.create_string_buffer(data, len(data))
         self._rom_path_c = str(Path(rom_path).resolve()).encode()
@@ -322,6 +368,26 @@ class LibretroCore:
             raise LibretroError(f"Save RAM size mismatch ({len(data)} vs {size})")
         C.memmove(ptr, data, size)
         return size
+
+    def unload_game(self) -> None:
+        if self._game_loaded:
+            self.lib.retro_unload_game()
+            self._game_loaded = False
+            self._last_raw = None
+            self.audio_buffer.clear()
+            self.regions = []
+
+    def write_bus(self, address: int, data: bytes) -> None:
+        """Write guest memory (used by tests/tools to create deterministic game states)."""
+        for r in self.regions:
+            hit = ((address & r.select) == (r.start & r.select)) if r.select else r.start <= address < r.start + r.length
+            if hit:
+                rel = (address - r.start) % r.length
+                if rel + len(data) > r.length:
+                    raise LibretroError("Write crosses the end of a memory region")
+                C.memmove(r.ptr + rel, data, len(data))
+                return
+        raise LibretroError(f"Address 0x{address:08X} is not mapped by the core")
 
     def close(self) -> None:
         if self._game_loaded:

@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .hashing import sha256_bytes, sha256_file
+from .hashing import sha256_bytes
 from .platform_support import platform_tag
 from .util import read_json, write_json
 
@@ -147,20 +147,22 @@ def _strip(name: str, n: int) -> str | None:
 
 def _install(data: bytes, p: dict[str, Any], dest: Path) -> None:
     kind, strip = p.get("archive"), int(p.get("strip_components") or 0)
+    include = set(p.get("include") or ())   # optional allow-list of paths (after stripping)
     dest.mkdir(parents=True, exist_ok=True)
     if kind is None:
         (dest / p["entry"]).write_bytes(data)
         return
     staging = Path(tempfile.mkdtemp(prefix="nfnf-component-", dir=dest.parent))
+    staging.chmod(0o755)   # mkdtemp creates 0700; installed components must be readable
     try:
         if kind == "zip":
             with zipfile.ZipFile(io.BytesIO(data)) as z:
                 for info in z.infolist():
                     rel = _strip(info.filename, strip)
-                    if rel is None or info.is_dir():
+                    if rel is None or info.is_dir() or (include and rel not in include):
                         continue
                     target = staging / rel
-                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.parent.mkdir(parents=True, exist_ok=True, mode=0o755)
                     target.write_bytes(z.read(info))
                     mode = (info.external_attr >> 16) & 0o777
                     if mode:
@@ -169,7 +171,7 @@ def _install(data: bytes, p: dict[str, Any], dest: Path) -> None:
             with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as t:
                 for m in t.getmembers():
                     rel = _strip(m.name, strip)
-                    if rel is None:
+                    if rel is None or (include and not m.isdir() and rel not in include):
                         continue
                     target = staging / rel
                     if m.isdir():

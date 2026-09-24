@@ -9,6 +9,7 @@ from .base import (CAPABILITIES, TrackerAdapter, TrackerEvent, TrackerInstallati
                    TrackerPreparation)
 from .ironmon_tracker import IronmonTrackerAdapter
 from .mock import MockTracker
+from .native import NativeTrackerAdapter
 from .null import NullTracker
 
 
@@ -17,8 +18,9 @@ def build_trackers(config: dict[str, Any], base: Path) -> dict[str, TrackerAdapt
         "ironmon-tracker": IronmonTrackerAdapter(config.get("ironmon-tracker", {}), base),
         "mock": MockTracker(),
         "none": NullTracker(),
+        "nfnf": NativeTrackerAdapter(),
     }
 
 
 __all__ = ["CAPABILITIES", "TrackerAdapter", "TrackerEvent", "TrackerInstallation",
-           "TrackerPreparation", "IronmonTrackerAdapter", "MockTracker", "NullTracker", "build_trackers"]
+           "TrackerPreparation", "IronmonTrackerAdapter", "MockTracker", "NullTracker", "NativeTrackerAdapter", "build_trackers"]

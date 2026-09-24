@@ -15,9 +15,11 @@ Each run lives in its own folder, which is the source of truth::
 
 from __future__ import annotations
 
+import functools
 import json
 import os
 import re
+import threading
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -162,9 +164,21 @@ class EventLog:
 
 # --- run manager -------------------------------------------------------------
 
+def _locked(fn):
+    """Serialize run mutations. Every event publish happens under this lock,
+    so the tracker worker thread and the render thread can both record events
+    without interleaving the hash-chained log or the event bus."""
+    @functools.wraps(fn)
+    def wrapper(self, *args, **kwargs):
+        with self._lock:
+            return fn(self, *args, **kwargs)
+    return wrapper
+
+
 class RunManager:
     def __init__(self, paths: AppPaths, db: Database, bus: EventBus):
         self.paths, self.db, self.bus = paths, db, bus
+        self._lock = threading.RLock()
 
     # ids / lookup
     def allocate_seq(self) -> int:
@@ -200,6 +214,7 @@ class RunManager:
         return self.get(row["id"]) if row else None
 
     # creation
+    @_locked
     def create_run(self, game_id: str, *, ruleset_id: str | None = None,
                    ruleset_sha256: str | None = None, randomizer_profile_id: str | None = None,
                    emulator_id: str | None = None, tracker_id: str | None = None,
@@ -232,6 +247,7 @@ class RunManager:
                  "source_rom_sha256", "generated_rom_sha256", "emulator_id", "tracker_id",
                  "actual_randomizer_seed", "deterministic"}
 
+    @_locked
     def update_fields(self, run_id: str, extra_metadata: dict[str, Any] | None = None,
                       **fields: Any) -> Run:
         run = self.get(run_id)
@@ -290,6 +306,7 @@ class RunManager:
         write_json(path, meta)
 
     # lifecycle
+    @_locked
     def transition(self, run_id: str, new_state: RunState | str, reason: str | None = None) -> Run:
         new_state = RunState(new_state)
         run = self.get(run_id)
@@ -320,6 +337,7 @@ class RunManager:
         return self.get(run_id)
 
     # events
+    @_locked
     def record_event(self, run_id: str | None, event_type: str,
                      payload: dict[str, Any] | None = None, source: str = "system") -> Event:
         """Persist (run log + DB) and then publish an event."""
@@ -343,6 +361,7 @@ class RunManager:
         return EventLog.read(self.get(run_id).path / "events.jsonl")
 
     # archival
+    @_locked
     def archive(self, run_id: str) -> dict[str, Any]:
         run = self.get(run_id)
         if not run.is_terminal:

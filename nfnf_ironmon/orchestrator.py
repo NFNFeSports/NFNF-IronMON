@@ -62,6 +62,9 @@ class RunOrchestrator:
         self.emulators, self.trackers, self.runs, self.integrity = emulators, trackers, runs, integrity
         self.controllers = controllers
         self.live: dict[str, LiveSession] = {}
+        #: run id -> callback(reason). A game session that owns a run fails it on
+        #: its own (render) thread; rule violations are handed to it instead.
+        self.run_owners: dict[str, Any] = {}
         self._engines: dict[str, RulesEngine] = {}
         bus.subscribe(self._evaluate_rules)
 
@@ -155,9 +158,13 @@ class RunOrchestrator:
         if result.randomizer.modifies_rom and result.generated_rom_sha256 == source.sha256:
             raise RunSetupError("Randomizer reported success but the ROM is unchanged")
         randomizer.write_output(result, run.path / "randomizer.json", paths.rel)
-        settings_file = result.manifest.get("settings_file")
-        if settings_file:
-            shutil.copyfile(settings_file["path"], run.path / "settings.rnqs")
+        snapshots = []
+        files = result.manifest.get("settings_files") or []
+        for i, sf in enumerate(files):
+            name = "settings.rnqs" if len(files) == 1 else f"settings.pass{i + 1}.rnqs"
+            shutil.copyfile(sf["path"], run.path / name)
+            snapshots.append(name)
+        settings_file = snapshots[0] if snapshots else None
 
         # 5. run environment: settings + ruleset snapshot
         write_json(run.path / "settings.json", {
@@ -169,7 +176,8 @@ class RunOrchestrator:
             "randomizer_profile": profile.id,
             "randomizer": result.randomizer.to_dict(),
             "randomizer_settings": result.settings,
-            "settings_file_snapshot": "settings.rnqs" if settings_file else None,
+            "settings_file_snapshot": settings_file,
+            "settings_file_snapshots": snapshots,
             "settings_sha256": result.settings_sha256,
             "ruleset": {"id": ruleset.id, "version": ruleset.version, "sha256": ruleset.sha256},
             "emulator": emulator.emulator_id,
@@ -218,7 +226,7 @@ class RunOrchestrator:
             generated_rom_sha256=result.generated_rom_sha256,
             source_rom_sha256=result.source_rom_sha256, seed=seed,
             settings_sha256=result.settings_sha256, ruleset_sha256=ruleset.sha256,
-            tracker_capabilities=list(tracker.capabilities))
+            tracker_capabilities=list(tracker.capabilities_for(identity)))
 
     def auto_profile(self, game_id: str) -> str:
         """First profile for the game whose (real) randomizer is available. Never the mock."""
@@ -253,6 +261,20 @@ class RunOrchestrator:
         except Exception as exc:  # noqa: BLE001 — a controller problem must not block a run
             payload = {"device": None, "error": str(exc)}
         self.runs.record_event(run_id, EventType.CONTROLLER_PREPARED, payload)
+
+    def activate_integrated(self, run_id: str, *, rom_sha256: str, emulator_detail: dict[str, Any],
+                            tracker_detail: dict[str, Any], resumed: bool = False) -> Run:
+        """Called by the game session once the integrated emulator really runs the ROM."""
+        meta = self.runs.metadata(run_id)
+        self.runs.record_event(run_id, EventType.EMULATOR_STARTED,
+                               {"emulator": "nfnf-libretro", "in_process": True, "resumed": resumed,
+                                **emulator_detail})
+        self.runs.record_event(run_id, EventType.ROM_LOADED, {"rom": meta.get("rom"), "rom_sha256": rom_sha256})
+        self.runs.record_event(run_id, EventType.TRACKER_ATTACHED, {"tracker": "nfnf", **tracker_detail})
+        run = self.runs.get(run_id)
+        if run.status == RunState.READY:
+            run = self.runs.transition(run_id, RunState.ACTIVE)
+        return run
 
     def _launch(self, run_id: str, game: GameAdapter, emulator: EmulatorAdapter,
                 tracker: TrackerAdapter) -> None:
@@ -313,6 +335,10 @@ class RunOrchestrator:
     def _auto_fail(self, run_id: str, reason: str) -> None:
         if self.runs.get(run_id).status != RunState.ACTIVE:
             return  # already handled (e.g. two violations from one event)
+        owner = self.run_owners.get(run_id)
+        if owner is not None:
+            owner(reason)
+            return
         if self.config.get("auto_new_run_on_failure"):
             self.restart_after_failure(run_id, reason)
         else:

@@ -22,8 +22,8 @@ DEFAULTS: dict[str, Any] = {
     "default_randomizer_profile": "auto",
     # Integrated engine. Until interactive play exists (Phase 3), runs stop at READY.
     "emulator": "nfnf-libretro",
-    # "none" observes nothing, so integrity honestly reports gameplay as UNKNOWN.
-    "tracker": "none",
+    # Built-in memory tracker; games without a reader report gameplay as UNKNOWN.
+    "tracker": "nfnf",
     "auto_new_run_on_failure": False,
     "controller": {"mapping": "xbox-gba-labels", "device": None},
     "emulators": {

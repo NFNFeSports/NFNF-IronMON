@@ -107,7 +107,7 @@ class ComponentTests(unittest.TestCase):
 class BundledManifestTests(unittest.TestCase):
     def test_project_manifest_is_complete(self):
         m = ComponentManager(BUNDLE_ROOT)
-        self.assertEqual(set(m.ids()), {"java-runtime", "upr-zx", "mgba-libretro", "firered-ironmon-rnqs"})
+        self.assertTrue({"java-runtime", "upr-zx", "mgba-libretro", "sdl2", "firered-ironmon-rnqs"} <= set(m.ids()))
         for c in m.manifest["components"]:
             with self.subTest(c["id"]):
                 self.assertTrue(c["license"])

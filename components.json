@@ -53,6 +53,44 @@
       }
     },
     {
+      "id": "sdl2",
+      "name": "SDL2",
+      "version": "2.32.10",
+      "license": "Zlib",
+      "license_url": "https://github.com/libsdl-org/SDL/blob/release-2.32.10/LICENSE.txt",
+      "source_url": "https://github.com/libsdl-org/SDL/tree/release-2.32.10",
+      "redistributable": true,
+      "purpose": "Game window, audio output and game-controller input (loaded via ctypes)",
+      "platforms": {
+        "linux-x64": {
+          "url": "https://files.pythonhosted.org/packages/5d/6e/07ec92ba241b2aa941abf478e96c1474f2c5975b61d84303fbcb2ba1dcc9/pysdl2_dll-2.32.10-py2.py3-none-manylinux2014_x86_64.whl",
+          "sha256": "12b136c38114ae0f8a85453a879795ba5d61663d98673ba19c36c3008ff00353",
+          "sha256_source": "PyPI (pysdl2-dll wheel digest)",
+          "archive": "zip",
+          "strip_components": 2,
+          "include": [
+            "libSDL2-2.0.so",
+            "libs/SDL2/README-SDL.txt"
+          ],
+          "dest": "runtime/sdl2/linux-x64",
+          "entry": "libSDL2-2.0.so"
+        },
+        "windows-x64": {
+          "url": "https://files.pythonhosted.org/packages/91/8e/3a90c664cca4c61c7538a8b1a7fd86c7dc3521465198a844bce21b4a97c1/pysdl2_dll-2.32.10-py2.py3-none-win_amd64.whl",
+          "sha256": "65eba83d68c33b22aa5eca6c9a8521cff5044435ecd5b49521068df82674de6a",
+          "sha256_source": "PyPI (pysdl2-dll wheel digest)",
+          "archive": "zip",
+          "strip_components": 2,
+          "include": [
+            "SDL2.dll",
+            "libs/SDL2/README-SDL.txt"
+          ],
+          "dest": "runtime/sdl2/windows-x64",
+          "entry": "SDL2.dll"
+        }
+      }
+    },
+    {
       "id": "mgba-libretro",
       "name": "mGBA libretro core",
       "version": "nightly",

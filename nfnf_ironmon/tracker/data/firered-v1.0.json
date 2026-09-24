@@ -1,0 +1,56 @@
+{
+  "game": "firered-v1.0",
+  "sources": {
+    "pret": "github.com/pret/pokefirered symbols/pokefirered.sym",
+    "ironmon_tracker": "besteon/Ironmon-Tracker@41e67112 GameAddresses/Pokemon FireRed v1.0.json (MIT)"
+  },
+  "cross_checked": [
+    "gPlayerParty",
+    "gEnemyParty",
+    "gPlayerPartyCount",
+    "gBattleTypeFlags",
+    "gBattleOutcome",
+    "gSaveBlock1Ptr",
+    "gSaveBlock2Ptr",
+    "gMapHeader",
+    "gBattleMons",
+    "gTrainerBattleOpponent_A"
+  ],
+  "addresses": {
+    "gPlayerParty": "0x2024284",
+    "gPlayerPartyCount": "0x2024029",
+    "gEnemyParty": "0x202402C",
+    "gBattleTypeFlags": "0x2022B4C",
+    "gBattleOutcome": "0x2023E8A",
+    "gBattleMons": "0x2023BE4",
+    "gMain": "0x30030F0",
+    "gSaveBlock1Ptr": "0x3005008",
+    "gSaveBlock2Ptr": "0x300500C",
+    "gMapHeader": "0x2036DFC",
+    "BattleMainCB2": "0x8011100",
+    "CB2_Overworld": "0x80565B4",
+    "gSpeciesNames": "0x8245EE0",
+    "sMapNames": "0x83F1CAC",
+    "gTrainerBattleOpponent_A": "0x20386AE",
+    "gBattlerPartyIndexes": "0x2023BCE"
+  },
+  "constants": {
+    "saveblock1_flags_offset": 3808,
+    "badge_flag_base": 2080,
+    "mapsec_base": 88,
+    "battle_type": {
+      "DOUBLE": 1,
+      "TRAINER": 8,
+      "FIRST_BATTLE": 16,
+      "SAFARI": 128,
+      "OLD_MAN_TUTORIAL": 512,
+      "GHOST": 32768,
+      "POKEDUDE": 65536
+    },
+    "pokemon_center_1f_layouts": [
+      8,
+      212,
+      271
+    ]
+  }
+}

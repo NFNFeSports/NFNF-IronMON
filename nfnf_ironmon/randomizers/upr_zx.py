@@ -121,25 +121,34 @@ class UprZxRandomizer(RandomizerAdapter):
         return identity.game_id in UPR_SUPPORTED_GAMES
 
     # --- settings -------------------------------------------------------
-    def settings_file(self, settings: dict[str, Any]) -> Path:
-        value = settings.get("settings_file")
-        if not value:
-            raise RandomizerError("Profile settings need 'settings_file' (a UPR .rnqs file)")
-        p = Path(value)
-        return p if p.is_absolute() or self.base is None else self.base / p
+    def settings_files(self, settings: dict[str, Any]) -> list[Path]:
+        """One .rnqs, or several applied in order (official Gen 1 two-pass method)."""
+        values = settings.get("settings_files") or ([settings["settings_file"]] if settings.get("settings_file") else [])
+        if not values:
+            raise RandomizerError("Profile settings need 'settings_file' or 'settings_files' (UPR .rnqs)")
+        return [Path(v) if Path(v).is_absolute() or self.base is None else self.base / v for v in values]
 
-    def validate_settings(self, settings: dict[str, Any]) -> RnqsInfo:
-        path = self.settings_file(settings)
+    def settings_file(self, settings: dict[str, Any]) -> Path:
+        return self.settings_files(settings)[0]
+
+    def validate_settings(self, settings: dict[str, Any]) -> list[RnqsInfo]:
         max_version = UPR_SETTINGS_VERSION.get(self.info().version)
-        try:
-            return load_rnqs(path, max_version)
-        except RnqsError as exc:
-            raise RandomizerError(f"Invalid randomizer settings {path}: {exc}") from None
+        infos = []
+        for path in self.settings_files(settings):
+            try:
+                infos.append(load_rnqs(path, max_version))
+            except RnqsError as exc:
+                raise RandomizerError(f"Invalid randomizer settings {path}: {exc}") from None
+        return infos
 
     def effective_settings(self, request: RandomizationRequest) -> dict[str, Any]:
-        info = self.validate_settings(request.settings)
-        return {**request.settings, "settings_file_sha256": info.sha256,
-                "settings_file_version": info.version, "settings_file_rom_name": info.rom_name}
+        infos = self.validate_settings(request.settings)
+        out = {**request.settings, "settings_files_sha256": [i.sha256 for i in infos],
+               "settings_files_version": [i.version for i in infos]}
+        if len(infos) == 1:   # keep the single-file keys used since Phase 2
+            out.update(settings_file_sha256=infos[0].sha256, settings_file_version=infos[0].version,
+                       settings_file_rom_name=infos[0].rom_name)
+        return out
 
     # --- execution ------------------------------------------------------
     def build_command(self, settings_file: Path, source_rom: Path, output_rom: Path,
@@ -153,27 +162,16 @@ class UprZxRandomizer(RandomizerAdapter):
             cmd.append("-l")
         return cmd
 
-    def _randomize(self, request: RandomizationRequest) -> tuple[Path, dict[str, Any], Path | None]:
-        ok, why = self.is_available()
-        if not ok:
-            raise RandomizerError(why)
-        settings_path = self.settings_file(request.settings)
-        rnqs = self.validate_settings(request.settings)
-        out = request.output_dir / f"{request.output_name}{request.source_rom.suffix}"
-        if out.exists():
-            raise RandomizerError(f"Refusing to overwrite existing output {out}")
-        cmd = self.build_command(settings_path.resolve(), request.source_rom.resolve(), out.resolve())
+    def _run_pass(self, settings_path: Path, source: Path, out: Path, log_dir: Path, tag: str) -> tuple[UprLog, list[str]]:
+        cmd = self.build_command(settings_path.resolve(), source.resolve(), out.resolve())
         try:
-            proc = self.runner(cmd, cwd=str(request.output_dir), capture_output=True, text=True,
+            proc = self.runner(cmd, cwd=str(out.parent), capture_output=True, text=True,
                                timeout=self.timeout_seconds)
         except subprocess.TimeoutExpired:
             raise RandomizerError(f"UPR ZX timed out after {self.timeout_seconds}s") from None
         except OSError as exc:
             raise RandomizerError(f"Could not start Java: {exc}") from None
-
-        log_dir = request.log_dir or request.output_dir
-        log_dir.mkdir(parents=True, exist_ok=True)
-        (log_dir / "upr-zx-console.log").write_text(
+        (log_dir / f"upr-zx{tag}-console.log").write_text(
             f"$ {' '.join(cmd)}\n[exit {proc.returncode}]\n--- stdout ---\n{proc.stdout}\n"
             f"--- stderr ---\n{proc.stderr}\n", encoding="utf-8")
         if proc.returncode != 0 or SUCCESS_MARKER not in (proc.stdout or ""):
@@ -181,27 +179,55 @@ class UprZxRandomizer(RandomizerAdapter):
             raise RandomizerError(f"UPR ZX failed (exit {proc.returncode}): {tail}")
         if not out.is_file():
             raise RandomizerError(f"UPR ZX reported success but {out.name} was not written")
-
-        upr_log = Path(str(out) + ".log")
-        log_path = None
         parsed = UprLog(None, None, None, None)
+        upr_log = Path(str(out) + ".log")
         if upr_log.is_file():
-            log_path = log_dir / "upr-zx.log"
-            shutil.move(str(upr_log), log_path)
-            parsed = parse_upr_log(log_path.read_text(encoding="utf-8", errors="replace"))
-        warnings = [l[len("WARNING: "):] for l in (proc.stderr or "").splitlines()
-                    if l.startswith("WARNING: ")]
+            dest = log_dir / f"upr-zx{tag}.log"
+            shutil.move(str(upr_log), dest)
+            parsed = parse_upr_log(dest.read_text(encoding="utf-8", errors="replace"))
+        warnings = [l[len("WARNING: "):] for l in (proc.stderr or "").splitlines() if l.startswith("WARNING: ")]
+        return parsed, warnings
+
+    def _randomize(self, request: RandomizationRequest) -> tuple[Path, dict[str, Any], Path | None]:
+        ok, why = self.is_available()
+        if not ok:
+            raise RandomizerError(why)
+        paths = self.settings_files(request.settings)
+        infos = self.validate_settings(request.settings)
+        out = request.output_dir / f"{request.output_name}{request.source_rom.suffix}"
+        if out.exists():
+            raise RandomizerError(f"Refusing to overwrite existing output {out}")
+        log_dir = request.log_dir or request.output_dir
+        log_dir.mkdir(parents=True, exist_ok=True)
+        passes, warnings, source = [], [], request.source_rom
+        for i, path in enumerate(paths):
+            last = i == len(paths) - 1
+            tag = "" if len(paths) == 1 else f"-pass{i + 1}"
+            target = out if last else request.output_dir / f".{request.output_name}.pass{i + 1}{request.source_rom.suffix}"
+            parsed, warn = self._run_pass(path, source, target, log_dir, tag)
+            passes.append({"pass": i + 1, "settings_file": str(path), "settings_sha256": infos[i].sha256,
+                           "actual_seed": parsed.seed, "reported_version": parsed.version,
+                           "settings_string": parsed.settings_string, "rom_name": parsed.rom_name})
+            warnings += [f"pass {i + 1}: {w}" if tag else w for w in warn]
+            if parsed.seed is None:
+                warnings.append(f"pass {i + 1}: UPR log did not report a seed")
+            if i > 0:
+                source.unlink()        # intermediate ROM of the previous pass (inside the run only)
+            source = target
         manifest = {
-            "actual_seed": parsed.seed,
-            "reported_version": parsed.version,
-            "reported_rom_name": parsed.rom_name,
-            "settings_string": parsed.settings_string,
-            "settings_file": {"path": str(settings_path), "sha256": rnqs.sha256,
-                              "version": rnqs.version, "rom_name": rnqs.rom_name},
+            "actual_seed": passes[0]["actual_seed"],
+            "actual_seeds": [p["actual_seed"] for p in passes],
+            "passes": passes,
+            "reported_version": passes[-1]["reported_version"],
+            "reported_rom_name": passes[-1]["rom_name"],
+            "settings_string": passes[-1]["settings_string"],
+            "settings_files": [{"path": str(p), "sha256": inf.sha256, "version": inf.version,
+                                "rom_name": inf.rom_name} for p, inf in zip(paths, infos)],
             "warnings": warnings,
-            "exit_code": proc.returncode,
+            "exit_code": 0,
             "tested_version": TESTED_VERSION,
         }
-        if parsed.seed is None:
-            manifest["warnings"].append("UPR log did not report a seed")
-        return out, manifest, log_path
+        if len(paths) == 1:
+            manifest["settings_file"] = manifest["settings_files"][0]
+        log_path = log_dir / ("upr-zx.log" if len(paths) == 1 else f"upr-zx-pass{len(paths)}.log")
+        return out, manifest, log_path if log_path.exists() else None
