@@ -1,0 +1,105 @@
+{
+  "schema": 1,
+  "description": "Third-party components bundled with NFNF IronMON builds. Fetched explicitly with `python3 -m nfnf_ironmon components fetch` (never at runtime). Every download is verified against sha256 before use.",
+  "components": [
+    {
+      "id": "java-runtime",
+      "name": "Eclipse Temurin JRE",
+      "version": "21.0.12.1+1",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "license_url": "https://adoptium.net/docs/faq/#_is_temurin_free_to_use",
+      "redistributable": true,
+      "purpose": "Runs Universal Pokemon Randomizer ZX without a system Java install",
+      "platforms": {
+        "linux-x64": {
+          "url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.12.1%2B1/OpenJDK21U-jre_x64_linux_hotspot_21.0.12.1_1.tar.gz",
+          "sha256": "2413149700df0f7d440500a84a8f764c535f21e5a5e87d38328b64eec2c5b500",
+          "sha256_source": "Adoptium API (publisher checksum)",
+          "archive": "tar.gz",
+          "strip_components": 1,
+          "dest": "runtime/java/linux-x64",
+          "entry": "bin/java"
+        },
+        "windows-x64": {
+          "url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.12.1%2B1/OpenJDK21U-jre_x64_windows_hotspot_21.0.12.1_1.zip",
+          "sha256": "d35f31e712f0fcf6ac5a093edc90204fbff22f720ba3950bd09d331d5e621636",
+          "sha256_source": "Adoptium API (publisher checksum)",
+          "archive": "zip",
+          "strip_components": 1,
+          "dest": "runtime/java/windows-x64",
+          "entry": "bin/java.exe"
+        }
+      }
+    },
+    {
+      "id": "upr-zx",
+      "name": "Universal Pokemon Randomizer ZX",
+      "version": "4.6.1",
+      "license": "GPL-3.0",
+      "license_url": "https://github.com/Ajarmar/universal-pokemon-randomizer-zx/blob/master/LICENSE.txt",
+      "source_url": "https://github.com/Ajarmar/universal-pokemon-randomizer-zx/tree/v4.6.1",
+      "redistributable": true,
+      "purpose": "Randomizes a copy of the user's ROM (run as a separate process)",
+      "platforms": {
+        "any": {
+          "url": "https://github.com/Ajarmar/universal-pokemon-randomizer-zx/releases/download/v4.6.1/PokeRandoZX-v4_6_1.zip",
+          "sha256": "26051fe8a6665ea0582dfcd4d1c3e4889da42a2f731f5fc530fff0cb691a43fd",
+          "sha256_source": "pinned by NFNF on first verified fetch (publisher gives no checksum)",
+          "archive": "zip",
+          "strip_components": 0,
+          "dest": "randomizer/upr-zx",
+          "entry": "PokeRandoZX.jar"
+        }
+      }
+    },
+    {
+      "id": "mgba-libretro",
+      "name": "mGBA libretro core",
+      "version": "nightly",
+      "license": "MPL-2.0",
+      "license_url": "https://github.com/mgba-emu/mgba/blob/master/LICENSE",
+      "source_url": "https://github.com/libretro/mgba",
+      "redistributable": true,
+      "purpose": "Integrated GB/GBC/GBA emulation core hosted in-process (Phase 2: headless prototype)",
+      "platforms": {
+        "linux-x64": {
+          "url": "https://buildbot.libretro.com/nightly/linux/x86_64/latest/mgba_libretro.so.zip",
+          "sha256": "5eea0627d4cefc4a995c89c18da8a6d43487793365e9eb02f9ce3bfe28e5ca07",
+          "sha256_source": "pinned by NFNF on first verified fetch (nightly build)",
+          "archive": "zip",
+          "strip_components": 0,
+          "dest": "emulator/cores/linux-x64",
+          "entry": "mgba_libretro.so"
+        },
+        "windows-x64": {
+          "url": "https://buildbot.libretro.com/nightly/windows/x86_64/latest/mgba_libretro.dll.zip",
+          "sha256": null,
+          "sha256_source": "pinned by NFNF on first verified fetch (nightly build)",
+          "archive": "zip",
+          "strip_components": 0,
+          "dest": "emulator/cores/windows-x64",
+          "entry": "mgba_libretro.dll"
+        }
+      }
+    },
+    {
+      "id": "firered-ironmon-rnqs",
+      "name": "IronMON FRLG Standard randomizer settings",
+      "version": "Ironmon-Tracker@41e671124fbc1e944480adfe62fc62dac26fd5b8",
+      "license": "MIT (Ironmon-Tracker repository)",
+      "license_url": "https://github.com/besteon/Ironmon-Tracker/blob/main/LICENSE.txt",
+      "redistributable": true,
+      "purpose": "Official IronMON FireRed/LeafGreen Standard settings for UPR ZX, used byte-for-byte",
+      "platforms": {
+        "any": {
+          "url": "https://raw.githubusercontent.com/besteon/Ironmon-Tracker/41e671124fbc1e944480adfe62fc62dac26fd5b8/ironmon_tracker/RandomizerSettings/FRLG%20Standard.rnqs",
+          "sha256": "f1fa42624c80e7fccc50acd3fc8594c360a5bb7b8842b00da35b273a88ba6210",
+          "sha256_source": "pinned by NFNF on first verified fetch",
+          "archive": null,
+          "dest": "randomizer-profiles",
+          "entry": "firered-ironmon.rnqs"
+        }
+      }
+    }
+  ]
+}

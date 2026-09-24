@@ -1,0 +1,23 @@
+{
+  "id": "xbox-gba-positional",
+  "name": "Xbox → GBA (Nintendo positions: right face = A, bottom face = B)",
+  "buttons": {
+    "B": ["A"],
+    "A": ["B"],
+    "LB": ["L"],
+    "RB": ["R"],
+    "START": ["START"],
+    "BACK": ["SELECT"],
+    "DPAD_UP": ["UP"],
+    "DPAD_DOWN": ["DOWN"],
+    "DPAD_LEFT": ["LEFT"],
+    "DPAD_RIGHT": ["RIGHT"]
+  },
+  "axes": {
+    "LX": {"negative": "LEFT", "positive": "RIGHT"},
+    "LY": {"negative": "UP", "positive": "DOWN"},
+    "LT": {"positive": "L"},
+    "RT": {"positive": "R"}
+  },
+  "deadzone": 0.35
+}

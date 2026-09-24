@@ -1,0 +1,11 @@
+{
+  "id": "firered-mock-standard",
+  "name": "FireRed — mock randomizer (Phase 1 testing)",
+  "game_id": "firered",
+  "randomizer": "mock",
+  "settings": {
+    "preset": "standard-ironmon",
+    "species_max": 386,
+    "note": "Mock settings. The mock randomizer copies the ROM unchanged and records a deterministic manifest."
+  }
+}

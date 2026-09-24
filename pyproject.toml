@@ -1,0 +1,17 @@
+[project]
+name = "nfnf-ironmon"
+version = "0.2.0"
+description = "NFNF IronMON — local, portable Pokémon IronMON run manager (standalone architecture, Phase 2)"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []  # standard library only (sqlite3, tkinter, http.server)
+
+[project.scripts]
+nfnf-ironmon = "nfnf_ironmon.cli:main"
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["nfnf_ironmon*"]

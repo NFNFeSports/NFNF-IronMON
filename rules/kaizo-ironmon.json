@@ -1,0 +1,74 @@
+{
+  "id": "kaizo-ironmon",
+  "name": "Kaizo IronMON",
+  "version": 1,
+  "games": ["*"],
+  "description": "NFNF IronMON encoding of Kaizo IronMON: Standard rules plus stricter item restrictions. Verify against the official Kaizo ruleset before competitive use.",
+  "source": "Community IronMON rules; NFNF encoding v1",
+  "rules": [
+    {
+      "id": "starter-faint-ends-run",
+      "description": "The run ends when your starter Pokémon faints.",
+      "severity": "HARD",
+      "detection": "automatic",
+      "event_type": "POKEMON_FAINTED",
+      "condition": {"field": "is_starter", "op": "eq", "value": true},
+      "failure_behavior": "FAIL_RUN"
+    },
+    {
+      "id": "no-pokecenter-healing",
+      "description": "Healing at a Pokémon Center is not allowed.",
+      "severity": "HARD",
+      "detection": "automatic",
+      "event_type": "POKECENTER_HEAL",
+      "condition": {"not": {"field": "forced", "op": "eq", "value": true}},
+      "failure_behavior": "FAIL_RUN"
+    },
+    {
+      "id": "no-healing-items-in-battle",
+      "description": "Healing items may not be used during battle.",
+      "severity": "HARD",
+      "detection": "automatic",
+      "event_type": "ITEM_USED",
+      "condition": {"all": [
+        {"field": "in_battle", "op": "eq", "value": true},
+        {"field": "category", "op": "eq", "value": "healing"}
+      ]},
+      "failure_behavior": "FAIL_RUN"
+    },
+    {
+      "id": "starter-only",
+      "description": "Only the starter may battle. A different Pokémon leading a battle is flagged for review.",
+      "severity": "SOFT",
+      "detection": "heuristic",
+      "event_type": "BATTLE_STARTED",
+      "condition": {"field": "lead_is_starter", "op": "eq", "value": false},
+      "failure_behavior": "FLAG_FOR_REVIEW"
+    },
+    {
+      "id": "no-save-states",
+      "description": "Loading a save state is not part of IronMON play.",
+      "severity": "SOFT",
+      "detection": "heuristic",
+      "event_type": "SAVE_LOADED",
+      "condition": {"field": "kind", "op": "eq", "value": "savestate"},
+      "failure_behavior": "FLAG_FOR_REVIEW"
+    },
+    {
+      "id": "randomizer-settings",
+      "description": "The ROM was generated with the official Kaizo IronMON randomizer settings for this game.",
+      "severity": "MANUAL",
+      "detection": "manual",
+      "event_type": null,
+      "failure_behavior": "CONFIRM_WITH_PLAYER"
+    },
+    {
+      "id": "kaizo-restrictions",
+      "description": "All remaining Kaizo restrictions (banned abilities, held items, etc.) per the official ruleset.",
+      "severity": "MANUAL",
+      "detection": "manual",
+      "event_type": null,
+      "failure_behavior": "CONFIRM_WITH_PLAYER"
+    }
+  ]
+}

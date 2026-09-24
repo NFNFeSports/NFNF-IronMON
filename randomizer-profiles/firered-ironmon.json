@@ -1,0 +1,11 @@
+{
+  "id": "firered-ironmon",
+  "name": "FireRed — IronMON Standard (Universal Pokémon Randomizer ZX)",
+  "game_id": "firered",
+  "randomizer": "upr-zx",
+  "settings": {
+    "settings_file": "randomizer-profiles/firered-ironmon.rnqs",
+    "preset": "IronMON FRLG Standard",
+    "settings_source": "besteon/Ironmon-Tracker ironmon_tracker/RandomizerSettings/FRLG Standard.rnqs (MIT), used byte-for-byte; see components.json"
+  }
+}

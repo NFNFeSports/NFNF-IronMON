@@ -1,0 +1,41 @@
+{
+  "id": "custom",
+  "name": "Custom (example)",
+  "version": 1,
+  "games": ["*"],
+  "description": "Template for your own ruleset. Copy this file, change the id (must match the file name) and edit the rules. Shows WARN rules, game-specific rules and compound conditions.",
+  "source": "NFNF IronMON example",
+  "rules": [
+    {
+      "id": "starter-faint-ends-run",
+      "description": "The run ends when your starter Pokémon faints.",
+      "severity": "HARD",
+      "detection": "automatic",
+      "event_type": "POKEMON_FAINTED",
+      "condition": {"field": "is_starter", "op": "eq", "value": true},
+      "failure_behavior": "FAIL_RUN"
+    },
+    {
+      "id": "warn-low-level-gym",
+      "description": "Warn when entering a gym battle under level 15.",
+      "severity": "SOFT",
+      "detection": "heuristic",
+      "event_type": "TRAINER_BATTLE",
+      "condition": {"all": [
+        {"field": "is_gym_leader", "op": "eq", "value": true},
+        {"field": "starter_level", "op": "lt", "value": 15}
+      ]},
+      "failure_behavior": "WARN"
+    },
+    {
+      "id": "firered-no-safari-zone",
+      "description": "FireRed only: flag entering the Safari Zone.",
+      "severity": "SOFT",
+      "detection": "heuristic",
+      "event_type": "AREA_CHANGED",
+      "games": ["firered"],
+      "condition": {"field": "area", "op": "contains", "value": "Safari Zone"},
+      "failure_behavior": "WARN"
+    }
+  ]
+}

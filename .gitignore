@@ -1,0 +1,54 @@
+# ---------------------------------------------------------------
+# COPYRIGHT PROTECTION — never commit ROMs, saves or save states.
+# ---------------------------------------------------------------
+*.gb
+*.gbc
+*.gba
+*.nds
+*.3ds
+*.cia
+*.sav
+*.srm
+*.sgm
+*.state
+*.State
+*.ss[0-9]
+*.st[0-9]
+*.ram
+*.rtc
+*.mgm
+
+# Randomizer settings may be committed on purpose, but randomizer
+# logs describe a specific generated ROM.
+*.log
+
+# User data: original ROM copies, runs, database, local config
+games/original/*
+!games/original/.gitkeep
+runs/*
+!runs/.gitkeep
+data/*
+!data/.gitkeep
+config/settings.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+
+# Bundled third-party binaries (fetched via components.json)
+runtime/
+emulator/cores/
+randomizer/upr-zx/
+
+# Packaging
+.venv-build/
+
+# Local backups made by migrations/config upgrades
+config/*.bak
+*.bak

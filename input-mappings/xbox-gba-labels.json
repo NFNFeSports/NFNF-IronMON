@@ -1,0 +1,23 @@
+{
+  "id": "xbox-gba-labels",
+  "name": "Xbox → GBA (button labels match: A→A, B→B)",
+  "buttons": {
+    "A": ["A"],
+    "B": ["B"],
+    "LB": ["L"],
+    "RB": ["R"],
+    "START": ["START"],
+    "BACK": ["SELECT"],
+    "DPAD_UP": ["UP"],
+    "DPAD_DOWN": ["DOWN"],
+    "DPAD_LEFT": ["LEFT"],
+    "DPAD_RIGHT": ["RIGHT"]
+  },
+  "axes": {
+    "LX": {"negative": "LEFT", "positive": "RIGHT"},
+    "LY": {"negative": "UP", "positive": "DOWN"},
+    "LT": {"positive": "L"},
+    "RT": {"positive": "R"}
+  },
+  "deadzone": 0.35
+}
