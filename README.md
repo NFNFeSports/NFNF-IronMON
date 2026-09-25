@@ -107,3 +107,4 @@ The core has no game-specific code. A game is a `GameAdapter` (header identifica
 ## Third-party components
 
 Universal Pokémon Randomizer ZX (GPL-3.0, run as a separate process), Eclipse Temurin JRE (GPL-2.0 with Classpath Exception), the mGBA libretro core (MPL-2.0), and IronMON FRLG settings from Ironmon-Tracker (MIT). Each is used unmodified. Public release still needs the full license texts and source offers bundled: see the dependency audit.
+# NFNF-IronMON
