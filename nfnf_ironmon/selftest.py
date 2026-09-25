@@ -21,7 +21,8 @@ from .autoplay import INTRO_TO_STARTER, SessionScript
 from .events import EventType
 
 
-def run_selftest(app, game_id: str | None = None, keep: bool = False) -> dict[str, Any]:
+def run_selftest(app, game_id: str | None = None, keep: bool = False, window: bool = False,
+                 capture: Path | None = None) -> dict[str, Any]:
     from .app import Application
     from .frontend.session import GameSession, SessionOptions
 
@@ -42,14 +43,22 @@ def run_selftest(app, game_id: str | None = None, keep: bool = False) -> dict[st
     test_app = Application(home)
     try:
         test_app.roms.scan(app.paths.originals_dir)               # read in place, never copied
+        def on_frame(sess, frame):
+            if capture and len(sess.result.runs_played) == 1 and frame == 2500:
+                sess.request_window_capture(capture)
+
         script = SessionScript([INTRO_TO_STARTER[game_id] + ["WAIT60", "POKE_PARTY_HP:0", "WAIT200"], ["WAIT30"]],
-                               runs=2, stop=lambda s: len(s.result.runs_played) >= 2 and s.run and s.frames >= 60)
-        sess = GameSession(test_app, SessionOptions(headless=True, unthrottled=True, script=script,
-                                                    max_frames=60000))
+                               runs=2, stop=lambda s: len(s.result.runs_played) >= 2 and s.run and s.frames >= 60,
+                               on_frame=on_frame)
+        sess = GameSession(test_app, SessionOptions(headless=not window, unthrottled=True, script=script,
+                                                    max_frames=60000, muted=True))
         result = sess.play(new_run={"game_id": game_id})
         steps = report["steps"]
         steps["runs_played"] = result.runs_played
         steps["video_driver"] = sess.video_driver
+        steps["audio_driver"] = sess.audio.driver if sess.audio else None
+        if capture and capture.exists():
+            steps["window_capture"] = str(capture)
         steps["frames_rendered"] = sess.rendered_frames
         if result.runs_played:
             first = test_app.runs.get(result.runs_played[0])

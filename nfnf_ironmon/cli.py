@@ -103,6 +103,8 @@ def build_parser() -> argparse.ArgumentParser:
     st = sub.add_parser("selftest", help="Headless end-to-end check with your own ROM in a temporary folder")
     st.add_argument("--game", default=None, help="game id (default: first supported game with a ROM)")
     st.add_argument("--keep", action="store_true", help="keep the temporary data folder")
+    st.add_argument("--window", action="store_true", help="use a real window/audio device instead of dummy drivers")
+    st.add_argument("--capture", help="save a PNG of the game window during the test")
     sv = sub.add_parser("serve", help="Local JSON API on 127.0.0.1")
     sv.add_argument("--port", type=int, default=8765)
     return p
@@ -149,7 +151,9 @@ def _dispatch(app: Application, args: argparse.Namespace) -> int:
         return _play_cmd(app, args)
     elif args.cmd == "selftest":
         from .selftest import run_selftest
-        report = run_selftest(app, args.game, keep=args.keep)
+        from pathlib import Path
+        report = run_selftest(app, args.game, keep=args.keep, window=args.window,
+                              capture=Path(args.capture) if args.capture else None)
         print(dumps(report))
         return 0 if report["result"] == "PASS" else 1
     elif args.cmd == "events":
